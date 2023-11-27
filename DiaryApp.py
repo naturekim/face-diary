@@ -149,18 +149,18 @@ class DiaryApp(QMainWindow):
         settings_menu.addAction(exitAction)
 
         # ========== 스타일시트 적용 ==========
-        button_style = (
+        self.BUTTON_STYLE = (
             "color: white; background: #C3ACD0; padding:10px; border-radius:4px;"
         )
-        button_style_point = (
+        self.BUTTON_STYLE_POINT = (
             "color: white; background: #7743DB; padding:10px; border-radius:4px;"
         )
-        self.camera_button.setStyleSheet(button_style)
-        self.mic_button.setStyleSheet(button_style)
-        self.play_button.setStyleSheet(button_style)
-        # self.trans_button.setStyleSheet(button_style)
-        self.list_button.setStyleSheet(button_style)
-        self.save_button.setStyleSheet(button_style_point)
+        self.camera_button.setStyleSheet(self.BUTTON_STYLE)
+        self.mic_button.setStyleSheet(self.BUTTON_STYLE)
+        self.play_button.setStyleSheet(self.BUTTON_STYLE)
+        # self.trans_button.setStyleSheet(BUTTON_STYLE)
+        self.list_button.setStyleSheet(self.BUTTON_STYLE)
+        self.save_button.setStyleSheet(self.BUTTON_STYLE_POINT)
         self.text_edit.setStyleSheet(
             "color: black; background: rgb(240,240,240); padding:10px; border-radius:4px; border: 1px solid #C3ACD0"
         )
@@ -232,6 +232,7 @@ class DiaryApp(QMainWindow):
     def toggle_recording(self):
         file_name = f"audio_{self.selected_date}.wav"
         file_path = f"{self.DATA_DIRS}\\audio\\{file_name}"
+
         if not self.is_recording:
             self.audio_recorder = QAudioRecorder()
             audio_settings = QAudioEncoderSettings()
@@ -242,12 +243,14 @@ class DiaryApp(QMainWindow):
             self.is_recording = True
             self.status_label.setText("녹음 중 입니다...")
             self.mic_button.setText("녹음 중지 ■")
+            self.mic_button.setStyleSheet(self.BUTTON_STYLE_POINT)
         else:
             self.audio_recorder.stop()
             self.is_recording = False
             self.status_label.setText("오디오가 저장되었습니다. " + file_name)
             self.mic_button.setText("음성 녹음 ●")
             self.play_button.setEnabled(True)
+            self.mic_button.setStyleSheet(self.BUTTON_STYLE)
 
             # 오디오->텍스트 변환
             try:
