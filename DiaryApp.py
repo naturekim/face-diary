@@ -122,6 +122,27 @@ class DiaryApp(QMainWindow):
         widget.setLayout(hbox)
         self.setCentralWidget(widget)
 
+        # ========== 앱 상태표시줄 생성 ==========
+        self.statusbar = QStatusBar(self)
+        self.setStatusBar(self.statusbar)
+        # self.statusBar()
+        # .setStatusTip("Exit application")으로 상태표시줄 문구 표시 가능
+
+        # ========== 메뉴바 생성 ==========
+        # 설정 - 사진 GIF로 만들기, 비밀번호 설정
+        createGifAction = QAction("GIF 생성", self)
+        setPasswordAction = QAction("비밀번호 변경", self)
+        exitAction = QAction("종료", self)
+        exitAction.setShortcut("Ctrl+Q")
+        exitAction.setStatusTip("Exit application")
+        exitAction.triggered.connect(qApp.quit)
+        menubar = self.menuBar()
+        menubar.setNativeMenuBar(False)
+        settings_menu = menubar.addMenu("&설정")
+        settings_menu.addAction(createGifAction)
+        settings_menu.addAction(setPasswordAction)
+        settings_menu.addAction(exitAction)
+
         # ========== 스타일시트 적용 ==========
         button_style = (
             "color: white; background: #C3ACD0; padding:10px; border-radius:4px;"
@@ -224,7 +245,6 @@ class DiaryApp(QMainWindow):
 
     # ========== 기능3. 캘린더 선택(일기조회&수정폼/작성폼) ==========
     def click_calendar(self):
-        
         self.selected_date = self.calendar_widget.selectedDate().toString(
             self.DATE_FORMAT
         )
