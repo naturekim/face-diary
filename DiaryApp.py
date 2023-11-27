@@ -27,6 +27,10 @@ from PyQt5.QtGui import (
 )
 from PyQt5.QtCore import QTimer, QUrl, Qt, QDate
 from PyQt5.QtMultimedia import QAudioRecorder, QAudioEncoderSettings
+import speech_recognition as sr
+import playsound
+
+# pip install playsound==1.2.2
 
 
 class DiaryApp(QMainWindow):
@@ -66,9 +70,10 @@ class DiaryApp(QMainWindow):
         self.mic_button = QPushButton("음성 녹음 ●")
         self.mic_button.clicked.connect(self.toggle_recording)
         self.play_button = QPushButton("음성 재생 ▶")
+        self.play_button.clicked.connect(self.play_recoding)
         # - 파일유무에 따라 활성화처리
         self.play_button.setEnabled(False)
-        self.trans_button = QPushButton("오디오 → 텍스트 변환")
+        # self.trans_button = QPushButton("오디오 → 텍스트 변환")
         self.list_button = QPushButton("목록")
         self.save_button = QPushButton("일기 저장_  오늘도 고생했어요 :)")
         # 캘린더
@@ -102,7 +107,7 @@ class DiaryApp(QMainWindow):
         button_vbox.addWidget(self.mic_button)
         button_vbox.addWidget(self.play_button)
         left_vbox.addLayout(button_vbox)
-        left_vbox.addWidget(self.trans_button)
+        # left_vbox.addWidget(self.trans_button)
         left_vbox.addWidget(self.status_label)
 
         # ========== right vbox ==========
@@ -153,7 +158,7 @@ class DiaryApp(QMainWindow):
         self.camera_button.setStyleSheet(button_style)
         self.mic_button.setStyleSheet(button_style)
         self.play_button.setStyleSheet(button_style)
-        self.trans_button.setStyleSheet(button_style)
+        # self.trans_button.setStyleSheet(button_style)
         self.list_button.setStyleSheet(button_style)
         self.save_button.setStyleSheet(button_style_point)
         self.text_edit.setStyleSheet(
@@ -171,7 +176,7 @@ class DiaryApp(QMainWindow):
         self.camera_button.setFont(custom_font)
         self.mic_button.setFont(custom_font)
         self.play_button.setFont(custom_font)
-        self.trans_button.setFont(custom_font)
+        # self.trans_button.setFont(custom_font)
         self.list_button.setFont(custom_font)
         self.save_button.setFont(custom_font)
         self.status_label.setFont(custom_font)
@@ -223,6 +228,7 @@ class DiaryApp(QMainWindow):
             self.image_label_img.setPixmap(pixmap)
 
     # ========== 기능2. 오디오 ==========
+    # 오디오 녹음/정지
     def toggle_recording(self):
         file_name = f"audio_{self.selected_date}.wav"
         file_path = f"{self.DATA_DIRS}\\audio\\{file_name}"
@@ -242,6 +248,25 @@ class DiaryApp(QMainWindow):
             self.status_label.setText("오디오가 저장되었습니다. " + file_name)
             self.mic_button.setText("음성 녹음 ●")
             self.play_button.setEnabled(True)
+
+            # 오디오->텍스트 변환
+            try:
+                r = sr.Recognizer()
+                with sr.AudioFile(file_path) as source:
+                    audio = r.record(source, duration=120)
+                    vToText = r.recognize_google(audio_data=audio, language="ko-KR")
+                    text = self.text_edit.toPlainText()
+                    text += vToText + "\n"
+                    self.text_edit.setText(text)
+            except sr.UnknownValueError:
+                self.status_label.setText("음성을 인식하지 못했습니다. 다시 녹음해주세요.")
+
+    # 오디오 재생
+    def play_recoding(self):
+        file_name = f"audio_{self.selected_date}.wav"
+        file_path = f"{self.DATA_DIRS}\\audio\\{file_name}"
+        if os.path.exists(file_path):
+            playsound.playsound(file_path)
 
     # ========== 기능3. 캘린더 선택(일기조회&수정폼/작성폼) ==========
     def click_calendar(self):
