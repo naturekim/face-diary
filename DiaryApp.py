@@ -24,6 +24,7 @@ from PyQt5.QtGui import (
     QFontDatabase,
     QFont,
     QIcon,
+    QColor,
 )
 from PyQt5.QtCore import QTimer, QUrl, Qt, QDate
 from PyQt5.QtMultimedia import QAudioRecorder, QAudioEncoderSettings
@@ -94,14 +95,6 @@ class DiaryApp(QMainWindow):
         self.calendar_widget = QCalendarWidget(self)
         self.calendar_widget.setVerticalHeaderFormat(0)  # vertical header 숨기기
         self.calendar_widget.clicked.connect(self.view_diary)
-        # - 일기쓴 날 표시
-        fm = QTextCharFormat()
-        fm.setForeground(Qt.blue)
-        fm.setBackground(Qt.yellow)
-        holidays = ["20231118", "20231126", "20231110", "20231105", "20231102"]
-        for dday in holidays:
-            dday2 = QDate.fromString(dday, "yyyyMMdd")
-            self.calendar_widget.setDateTextFormat(dday2, fm)
         # 상태 메세지 표시
         self.status_label = QLabel()
         # 선택된 날짜 텍스트 표시
@@ -187,7 +180,7 @@ class DiaryApp(QMainWindow):
         self.delete_button.setStyleSheet(self.BUTTON_STYLE)
         self.save_button.setStyleSheet(self.BUTTON_STYLE_POINT)
         self.text_edit.setStyleSheet(
-            "color: black; background: rgb(240,240,240); padding:10px; border-radius:4px; border: 1px solid #C3ACD0"
+            "color: black; background: rgb(255, 251, 245); padding:10px; border-radius:4px; border: 1px solid #C3ACD0"
         )
         self.date_label.setStyleSheet("padding: 10px;")
         widget.setStyleSheet("background: white; color: #7743DB;")
@@ -216,6 +209,9 @@ class DiaryApp(QMainWindow):
         self.setGeometry(800, 900, 800, 900)
         self.center()
         self.view_diary()
+        entries = self.manageDiary.view_entries()
+        for dday in entries:
+            self.mark_calendar(str(dday[0]))
         self.show()
 
     # 화면의 가운데로 띄우기
@@ -319,10 +315,6 @@ class DiaryApp(QMainWindow):
             self.status_label.setText("데이터 없음")
             self.paint_ui("", "", "")
 
-    def view_diaries(self):
-        entries = self.manageDiary.view_entries()
-        print("view_diary = ", entries)
-
     # 일기저장
     # - 저장할 정보: 날짜, 텍스트, 이미지파일이름, 오디오파일이름
     def save_diary(self):
@@ -348,6 +340,7 @@ class DiaryApp(QMainWindow):
             )
             if result:
                 self.status_label.setText("일기가 저장되었습니다.")
+                self.mark_calendar(self.selected_date)
             else:
                 self.status_label.setText("일기 저장에 실패했습니다. 다시 시도해주세요.")
 
@@ -382,6 +375,15 @@ class DiaryApp(QMainWindow):
         pixmap = QPixmap(file_path)
         pixmap = pixmap.scaledToWidth(400)
         self.image_label_img.setPixmap(pixmap)
+
+    # 일기 쓴 날 캘린더에 표시
+    def mark_calendar(self, date):
+        fm = QTextCharFormat()
+        fm.setForeground(Qt.white)
+        # fm.setBackground(QColor(119, 67, 219, 255))
+        fm.setBackground(QColor(195, 172, 208, 255))
+        dday2 = QDate.fromString(date, self.DATE_FORMAT)
+        self.calendar_widget.setDateTextFormat(dday2, fm)
 
 
 if __name__ == "__main__":
