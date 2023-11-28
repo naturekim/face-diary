@@ -265,7 +265,6 @@ class Diary(QMainWindow):
         # 설정 - 사진 GIF로 만들기, 비밀번호 설정
         createGifAction = QAction("GIF 생성", self)
         createGifAction.triggered.connect(self.images_to_gif)
-        setPasswordAction = QAction("비밀번호 변경", self)
         exitAction = QAction("종료", self)
         exitAction.setShortcut("Ctrl+Q")
         exitAction.setStatusTip("Exit application")
@@ -274,7 +273,6 @@ class Diary(QMainWindow):
         menubar.setNativeMenuBar(False)
         settings_menu = menubar.addMenu("&설정")
         settings_menu.addAction(createGifAction)
-        settings_menu.addAction(setPasswordAction)
         settings_menu.addAction(exitAction)
 
         # ========== 스타일시트 적용 ==========
@@ -295,7 +293,7 @@ class Diary(QMainWindow):
         self.delete_button.setStyleSheet(self.BUTTON_STYLE)
         self.save_button.setStyleSheet(self.BUTTON_STYLE_POINT)
         self.text_edit.setStyleSheet(
-            "color: black; background: rgb(255, 251, 245); padding:10px; border-radius:4px;"
+            "color: black; background: rgb(255, 251, 245); padding:10px; border-radius:4px; border: 1px solid #F7EFE5;"
         )
         self.date_label.setStyleSheet("padding: 10px;")
         self.img_file_label.setStyleSheet("color: #C3ACD0;")
@@ -427,14 +425,13 @@ class Diary(QMainWindow):
             self.calendar_widget.selectedDate().toString(self.DATE_FORMAT)
         )
         self.date_label.setText(
-            self.calendar_widget.selectedDate().toString("yyyy년 MM월 dd일의 일기")
+            self.calendar_widget.selectedDate().toString("yyyy년 MM월 dd일")
         )
         # 저장된 데이터 있는지 조회 및 UI에 표시
         entry = self.manageDiary.view_entry(self.selected_date)
         if entry:
             self.is_diary_exist = True
             self.status_label.setText("해당 날짜의 일기가 있습니다.")
-            print(entry)
             self.paint_ui(entry[1], entry[2], entry[3])
         else:
             self.is_diary_exist = False
@@ -510,7 +507,7 @@ class Diary(QMainWindow):
         # gif_output_path =  # gif 저장 폴더
         # images_to_gif(image_folder_path, gif_output_path)
         duration = 500
-        input_folder = "img"
+        input_folder = f"{self.DATA_DIRS}img"
         output_path = "output.gif"
         # 입력 폴더의 모든 이미지 파일에 대해 변환 수행
         image_files = [
