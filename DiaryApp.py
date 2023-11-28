@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QAction,
     qApp,
     QStatusBar,
+    QFileDialog
 )
 from PyQt5.QtGui import (
     QPixmap,
@@ -31,7 +32,7 @@ from PyQt5.QtMultimedia import QAudioRecorder, QAudioEncoderSettings
 import speech_recognition as sr
 import playsound
 
-
+from PIL import Image
 from manageDiary import ManageDiary
 from datetime import datetime
 
@@ -153,6 +154,7 @@ class DiaryApp(QMainWindow):
         # ========== 메뉴바 생성 ==========
         # 설정 - 사진 GIF로 만들기, 비밀번호 설정
         createGifAction = QAction("GIF 생성", self)
+        createGifAction.triggered.connect(self.images_to_gif)
         setPasswordAction = QAction("비밀번호 변경", self)
         exitAction = QAction("종료", self)
         exitAction.setShortcut("Ctrl+Q")
@@ -384,6 +386,26 @@ class DiaryApp(QMainWindow):
         fm.setBackground(QColor(195, 172, 208, 255))
         dday2 = QDate.fromString(date, self.DATE_FORMAT)
         self.calendar_widget.setDateTextFormat(dday2, fm)
+
+    
+    # 이미지를 gif로 변환
+    def images_to_gif(self):
+         # # 폴더명 설정
+        # image_folder_path =  # 사진 폴더
+        # gif_output_path =  # gif 저장 폴더
+        # images_to_gif(image_folder_path, gif_output_path)
+        duration=500
+        input_folder = 'img'
+        output_path= 'output.gif'
+        # 입력 폴더의 모든 이미지 파일에 대해 변환 수행
+        image_files = [f for f in os.listdir(input_folder) if f.endswith(('.jpg', '.jpeg', '.png', '.gif'))]
+        images = [Image.open(os.path.join(input_folder, f)) for f in image_files]
+        
+        # GIF로 저장할 때 애니메이션 속도를 조절할 수 있습니다.
+        # duration은 각 프레임의 표시 시간을 밀리초로 나타냅니다.
+        images[0].save(output_path, save_all=True, append_images=images[1:], duration=duration, loop=0)
+
+        
 
 
 if __name__ == "__main__":
