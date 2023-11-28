@@ -30,12 +30,21 @@ from PyQt5.QtMultimedia import QAudioRecorder, QAudioEncoderSettings
 import speech_recognition as sr
 import playsound
 
+
+from manageDiary import ManageDiary
+from datetime import datetime
+
 # pip install playsound==1.2.2
 
 
 class DiaryApp(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        self.manageDiary = ManageDiary()
+        # 테이블 생성
+        self.manageDiary.create_table()
+
         self.initUI()
 
     def initUI(self):
@@ -44,20 +53,22 @@ class DiaryApp(QMainWindow):
         today = QDate.currentDate()
         self.selected_date = today.toString(self.DATE_FORMAT)  # 기본값은 오늘, 캘린더 클릭시 바뀜
         self.is_recording = False
+        self.is_diary_exist = False
+        self.img_file_name = ""
+        self.audio_file_name = ""
 
         # 경로 (실행파일로 만들고 다시 봐야할 것 같음, 실행위치 안가져와짐)
         # BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         BASE_DIR = os.getcwd()
         STATIC_DIRS = f"{BASE_DIR}\\static\\"
         self.DATA_DIRS = f"{BASE_DIR}\\data\\"
+        self.DEFAULT_IMG_PATH = f"{STATIC_DIRS}default_image.png"
 
         # =========== Widgets ===========
         # 이미지
         self.image_label_img = QLabel()
-        default_img_file = f"{STATIC_DIRS}default_image.png"
-        pixmap = QPixmap(default_img_file)
-        pixmap = pixmap.scaledToWidth(400)
-        self.image_label_img.setPixmap(pixmap)
+        self.paint_img(self.DEFAULT_IMG_PATH)
+
         # 미리보기
         self.image_label_video = QLabel()
         self.video_capture = cv2.VideoCapture(0)
@@ -75,11 +86,14 @@ class DiaryApp(QMainWindow):
         self.play_button.setEnabled(False)
         # self.trans_button = QPushButton("오디오 → 텍스트 변환")
         self.list_button = QPushButton("목록")
-        self.save_button = QPushButton("일기 저장_  오늘도 고생했어요 :)")
+        self.save_button = QPushButton("저장_  오늘도 고생했어요 :)")
+        self.save_button.clicked.connect(self.save_diary)
+        self.delete_button = QPushButton("삭제")
+        self.delete_button.clicked.connect(self.delete_diary)
         # 캘린더
         self.calendar_widget = QCalendarWidget(self)
         self.calendar_widget.setVerticalHeaderFormat(0)  # vertical header 숨기기
-        self.calendar_widget.clicked.connect(self.click_calendar)
+        self.calendar_widget.clicked.connect(self.view_diary)
         # - 일기쓴 날 표시
         fm = QTextCharFormat()
         fm.setForeground(Qt.blue)
@@ -93,7 +107,12 @@ class DiaryApp(QMainWindow):
         # 선택된 날짜 텍스트 표시
         self.date_label = QLabel()
         self.date_label.setAlignment(Qt.AlignHCenter)
-        self.click_calendar()
+        # 이미지 파일 텍스트 표시
+        self.img_file_label = QLabel()
+        self.img_file_label.setAlignment(Qt.AlignHCenter)
+        # 오디오 파일 텍스트 표시
+        self.audio_file_label = QLabel()
+        self.audio_file_label.setAlignment(Qt.AlignHCenter)
         # 텍스트에디터
         self.text_edit = QTextEdit()
 
@@ -108,6 +127,8 @@ class DiaryApp(QMainWindow):
         button_vbox.addWidget(self.play_button)
         left_vbox.addLayout(button_vbox)
         # left_vbox.addWidget(self.trans_button)
+        left_vbox.addWidget(self.img_file_label)
+        left_vbox.addWidget(self.audio_file_label)
         left_vbox.addWidget(self.status_label)
 
         # ========== right vbox ==========
@@ -116,7 +137,10 @@ class DiaryApp(QMainWindow):
         right_vbox.addWidget(self.calendar_widget)
         right_vbox.addWidget(self.date_label)
         right_vbox.addWidget(self.text_edit)
-        right_vbox.addWidget(self.save_button)
+        diary_buttons_vbox = QHBoxLayout()
+        diary_buttons_vbox.addWidget(self.delete_button)
+        diary_buttons_vbox.addWidget(self.save_button)
+        right_vbox.addLayout(diary_buttons_vbox)
 
         # ========== outer hbox ==========
         hbox = QHBoxLayout()
@@ -160,6 +184,7 @@ class DiaryApp(QMainWindow):
         self.play_button.setStyleSheet(self.BUTTON_STYLE)
         # self.trans_button.setStyleSheet(BUTTON_STYLE)
         self.list_button.setStyleSheet(self.BUTTON_STYLE)
+        self.delete_button.setStyleSheet(self.BUTTON_STYLE)
         self.save_button.setStyleSheet(self.BUTTON_STYLE_POINT)
         self.text_edit.setStyleSheet(
             "color: black; background: rgb(240,240,240); padding:10px; border-radius:4px; border: 1px solid #C3ACD0"
@@ -178,6 +203,7 @@ class DiaryApp(QMainWindow):
         self.play_button.setFont(custom_font)
         # self.trans_button.setFont(custom_font)
         self.list_button.setFont(custom_font)
+        self.delete_button.setFont(custom_font)
         self.save_button.setFont(custom_font)
         self.status_label.setFont(custom_font)
         self.text_edit.setFont(custom_font)
@@ -189,6 +215,7 @@ class DiaryApp(QMainWindow):
         self.setWindowIcon(QIcon(f"{STATIC_DIRS}icon.png"))
         self.setGeometry(800, 900, 800, 900)
         self.center()
+        self.view_diary()
         self.show()
 
     # 화면의 가운데로 띄우기
@@ -221,11 +248,11 @@ class DiaryApp(QMainWindow):
             file_name = f"img_{self.selected_date}.jpg"
             file_path = f"{self.DATA_DIRS}\\img\\{file_name}"
             cv2.imwrite(file_path, frame)
+
+            self.img_file_name = file_name  # 일기저장할 때 사용
             self.status_label.setText("이미지가 캡쳐되었습니다. " + file_name)
-            # 이미지 띄우기
-            pixmap = QPixmap(file_path)
-            pixmap = pixmap.scaledToWidth(400)
-            self.image_label_img.setPixmap(pixmap)
+            # 이미지띄우기
+            self.paint_img(file_path)
 
     # ========== 기능2. 오디오 ==========
     # 오디오 녹음/정지
@@ -247,6 +274,7 @@ class DiaryApp(QMainWindow):
         else:
             self.audio_recorder.stop()
             self.is_recording = False
+            self.audio_file_name = file_name
             self.status_label.setText("오디오가 저장되었습니다. " + file_name)
             self.mic_button.setText("음성 녹음 ●")
             self.play_button.setEnabled(True)
@@ -266,19 +294,94 @@ class DiaryApp(QMainWindow):
 
     # 오디오 재생
     def play_recoding(self):
-        file_name = f"audio_{self.selected_date}.wav"
-        file_path = f"{self.DATA_DIRS}\\audio\\{file_name}"
+        file_path = f"{self.DATA_DIRS}\\audio\\{self.audio_file_name}"
         if os.path.exists(file_path):
             playsound.playsound(file_path)
 
-    # ========== 기능3. 캘린더 선택(일기조회&수정폼/작성폼) ==========
-    def click_calendar(self):
+    # ========== 기능3. 일기관리 ==========
+    # 일기조회(=캘린더 날짜 클릭)
+    def view_diary(self):
+        # 선택된 날짜(전역변수) 값 셋팅 및 표시
         self.selected_date = self.calendar_widget.selectedDate().toString(
             self.DATE_FORMAT
         )
         self.date_label.setText(
             self.calendar_widget.selectedDate().toString("yyyy년 MM월 dd일의 일기")
         )
+        # 저장된 데이터 있는지 조회 및 셋팅
+        entry = self.manageDiary.view_entry(self.selected_date)
+        if entry:
+            self.is_diary_exist = True
+            self.status_label.setText("해당 날짜의 일기가 있습니다.")
+            self.paint_ui(entry[1], entry[2], entry[3])
+        else:
+            self.is_diary_exist = False
+            self.status_label.setText("데이터 없음")
+            self.paint_ui("", "", "")
+
+    def view_diaries(self):
+        entries = self.manageDiary.view_entries()
+        print("view_diary = ", entries)
+
+    # 일기저장
+    # - 저장할 정보: 날짜, 텍스트, 이미지파일이름, 오디오파일이름
+    def save_diary(self):
+        if self.is_diary_exist:  # 해당 날짜 일기 조회 시마다 셋팅되는 변수
+            # 있으면 업데이트
+            result = self.manageDiary.update_entry(
+                self.selected_date,
+                self.text_edit.toPlainText(),
+                self.img_file_name,
+                self.audio_file_name,
+            )
+            if result:
+                self.status_label.setText("일기가 수정되었습니다.")
+            else:
+                self.status_label.setText("일기 수정에 실패했습니다. 다시 시도해주세요.")
+        else:
+            # 없으면 추가
+            result = self.manageDiary.add_entry(
+                self.selected_date,
+                self.text_edit.toPlainText(),
+                self.img_file_name,
+                self.audio_file_name,
+            )
+            if result:
+                self.status_label.setText("일기가 저장되었습니다.")
+            else:
+                self.status_label.setText("일기 저장에 실패했습니다. 다시 시도해주세요.")
+
+    # 일기삭제
+    def delete_diary(self):
+        result = self.manageDiary.delete_entry(self.selected_date)
+        if result:
+            self.status_label.setText("일기가 삭제되었습니다.")
+            self.paint_ui("", "", "")
+        else:
+            self.status_label.setText("삭제가 실패했습니다. 다시 시도해주세요.")
+
+    # ========== ui에 데이터바인딩 (디폴트 화면, 일기조회시, 삭제시) ==========
+    def paint_ui(self, content, img_file_name, audio_file_name):
+        # 이미지
+        if img_file_name == "":
+            self.paint_img(self.DEFAULT_IMG_PATH)
+        else:
+            file_name = f"img_{self.selected_date}.jpg"
+            file_path = f"{self.DATA_DIRS}\\img\\{file_name}"
+            self.paint_img(file_path)
+        # 오디오
+        if audio_file_name != "":
+            self.audio_file_name = audio_file_name
+
+        self.text_edit.setText(content)
+        self.img_file_label.setText(img_file_name)
+        self.audio_file_label.setText(audio_file_name)
+
+    # 이미지 띄우기
+    def paint_img(self, file_path):
+        pixmap = QPixmap(file_path)
+        pixmap = pixmap.scaledToWidth(400)
+        self.image_label_img.setPixmap(pixmap)
 
 
 if __name__ == "__main__":
@@ -286,3 +389,16 @@ if __name__ == "__main__":
     ex = DiaryApp()
 
     sys.exit(app.exec_())
+
+# DB 조회 시나리오
+# 맨처음프로그램 실행시
+# - 현재 캘린더 페이지 일기 쓴 날 체크
+# - 오늘 날짜 일기 데이터 체크
+# 캘린더 페이지 변경시
+# - 현재 캘린더 페이지 일기 쓴 날 체크
+# 날짜 변경시
+# - 변경한 날짜 일기 데이터 체크
+
+# 일기 저장할때 insert, 수정힐때 update, 일기 내용 지울때 delete
+
+# 저장된 이미지파일 오디오파일 체크하고 UI에 표시해야겠다
