@@ -32,7 +32,6 @@ import speech_recognition as sr
 import playsound
 
 from PIL import Image
-from datetime import datetime
 import sqlite3
 
 # pip install playsound==1.2.2
@@ -191,7 +190,7 @@ class Diary(QMainWindow):
         self.play_button = QPushButton("음성 재생 ▶")
         self.play_button.clicked.connect(self.play_recoding)
         # - 파일유무에 따라 활성화처리
-        self.play_button.setEnabled(False)
+        # self.play_button.setEnabled(False)
         # self.trans_button = QPushButton("오디오 → 텍스트 변환")
         self.list_button = QPushButton("목록")
         self.save_button = QPushButton("텍스트 저장")
@@ -360,21 +359,27 @@ class Diary(QMainWindow):
 
     # 캡쳐
     def capture_image(self):
-        ret, frame = self.video_capture.read()
-        if ret:
-            cv2.imwrite(self.img_file_path, frame)
-            # UI처리
-            self.img_file_label.setText(self.img_file_name)
-            self.paint_img(self.img_file_path)
-            self.status_label.setText("이미지가 캡쳐되었습니다. " + self.img_file_name)
+        try:
+            ret, frame = self.video_capture.read()
+            if ret:
+                cv2.imwrite(self.img_file_path, frame)
+                # UI처리
+                self.img_file_label.setText(self.img_file_name)
+                self.paint_img(self.img_file_path)
+                self.status_label.setText("이미지가 캡쳐되었습니다. " + self.img_file_name)
 
-            # 캡쳐할 때마다 DB에 저장처리(for 파일과 데이터 간 동기화)
-            self.save_diary()
+                # 캡쳐할 때마다 DB에 저장처리(for 파일과 데이터 간 동기화)
+                self.save_diary()
+            else:
+                self.status_label.setText("이미지를 캡쳐하지 못했습니다. (0001)")
+        except Exception as e:
+            self.status_label.setText("이미지를 캡쳐하지 못했습니다. Error - ", str(e))
 
     # ========== 기능2. 오디오 ==========
     # 오디오 녹음/정지
     def toggle_recording(self):
         if not self.is_recording:
+            # 녹음시작
             self.audio_recorder = QAudioRecorder()
             audio_settings = QAudioEncoderSettings()
             audio_settings.setCodec("audio/pcm")
@@ -388,17 +393,19 @@ class Diary(QMainWindow):
             self.mic_button.setText("녹음 중지 ■")
             self.mic_button.setStyleSheet(self.BUTTON_STYLE_POINT)
         else:
-            self.audio_recorder.stop()
-            self.is_recording = False
-            self.status_label.setText("오디오가 저장되었습니다. " + self.audio_file_name)
-            self.mic_button.setText("음성 녹음 ●")
-            self.play_button.setEnabled(True)
-            self.mic_button.setStyleSheet(self.BUTTON_STYLE)
-            # audio_file_label은 파일이 있을 경우에만 값 셋팅
-            self.audio_file_label.setText(self.audio_file_name)
-
-            # 오디오를 녹음할때마다 DB에 저장처리(for 파일과 데이터 간 동기화)
-            self.save_diary()
+            # 녹음정지
+            try:
+                self.audio_recorder.stop()
+                self.is_recording = False
+                self.mic_button.setText("음성 녹음 ●")
+                # self.play_button.setEnabled(True)
+                self.mic_button.setStyleSheet(self.BUTTON_STYLE)
+                # audio_file_label은 파일이 있을 경우에만 값 셋팅
+                self.audio_file_label.setText(self.audio_file_name)
+                # 오디오를 녹음할때마다 DB에 저장처리(for 파일과 데이터 간 동기화)
+                self.save_diary()
+            except Exception as e:
+                self.status_label.setText("오디오 저장에 실패했습니다. ")
 
             # 오디오->텍스트 변환
             try:
@@ -411,11 +418,30 @@ class Diary(QMainWindow):
                     self.text_edit.setText(text)
             except sr.UnknownValueError:
                 self.status_label.setText("음성을 인식하지 못했습니다. 다시 녹음해주세요.")
+            except Exception as e:
+                self.status_label.setText("음성을 인식하지 못했습니다. 다시 녹음해주세요. - ", str(e))
 
     # 오디오 재생
     def play_recoding(self):
-        if os.path.exists(self.audio_file_path):
-            playsound.playsound(self.audio_file_path)
+        # self.play_button.setStyleSheet(self.BUTTON_STYLE_POINT) 이상하게 적용이 안됨
+        self.status_label.setText("오디오 재생 중...")
+        # print(audio_file_path)
+        try:
+            if self.audio_file_label.text() != "":
+                audio_file_path = f"{self.DATA_DIRS}audio\\{self.audio_file_label.text()}"
+                if os.path.exists(audio_file_path):
+                    playsound.playsound(self.audio_file_path)
+                    self.status_label.clear()
+                    self.play_button.setStyleSheet(self.BUTTON_STYLE)
+                else:
+                    self.status_label.setText("저장된 오디오 파일이 없습니다.")
+                    self.play_button.setStyleSheet(self.BUTTON_STYLE)
+            else:
+                self.status_label.setText("저장된 오디오 파일이 없습니다.")
+                self.play_button.setStyleSheet(self.BUTTON_STYLE)
+        except Exception as e:
+            self.status_label.setText("음성을 재생하지 못했습니다. Error - ", str(e))
+            self.play_button.setStyleSheet(self.BUTTON_STYLE)
 
     # ========== 기능3. 일기관리 ==========
     # 일기조회(=캘린더 날짜 클릭)
@@ -431,7 +457,7 @@ class Diary(QMainWindow):
         entry = self.manageDiary.view_entry(self.selected_date)
         if entry:
             self.is_diary_exist = True
-            self.status_label.setText("해당 날짜의 일기가 있습니다.")
+            self.status_label.setText("해당 날짜의 데이터가 존재합니다.")
             self.paint_ui(entry[1], entry[2], entry[3])
         else:
             self.is_diary_exist = False
@@ -481,9 +507,9 @@ class Diary(QMainWindow):
             self.audio_file_name = audio_file_name
         # 텍스트에디터
         self.text_edit.setText(content)
-        # 이미지 파일 정보
+        # 저장된 이미지 파일 정보
         self.img_file_label.setText(img_file_name)
-        # 오디오 파일 정보
+        # 저장된 오디오 파일 정보
         self.audio_file_label.setText(audio_file_name)
 
     # 이미지 띄우기
@@ -502,30 +528,30 @@ class Diary(QMainWindow):
 
     # 이미지를 gif로 변환
     def images_to_gif(self):
-        # # 폴더명 설정
-        # image_folder_path =  # 사진 폴더
-        # gif_output_path =  # gif 저장 폴더
-        # images_to_gif(image_folder_path, gif_output_path)
-        duration = 500
-        input_folder = f"{self.DATA_DIRS}img"
-        output_path = "output.gif"
-        # 입력 폴더의 모든 이미지 파일에 대해 변환 수행
-        image_files = [
-            f
-            for f in os.listdir(input_folder)
-            if f.endswith((".jpg", ".jpeg", ".png", ".gif"))
-        ]
-        images = [Image.open(os.path.join(input_folder, f)) for f in image_files]
+        try:
+            duration = 500
+            input_folder = f"{self.DATA_DIRS}img"
+            output_file_name = "my_history.gif"
+            # 입력 폴더의 모든 이미지 파일에 대해 변환 수행
+            image_files = [
+                f
+                for f in os.listdir(input_folder)
+                if f.endswith((".jpg", ".jpeg", ".png", ".gif"))
+            ]
+            images = [Image.open(os.path.join(input_folder, f)) for f in image_files]
 
-        # GIF로 저장할 때 애니메이션 속도를 조절할 수 있습니다.
-        # duration은 각 프레임의 표시 시간을 밀리초로 나타냅니다.
-        images[0].save(
-            output_path,
-            save_all=True,
-            append_images=images[1:],
-            duration=duration,
-            loop=0,
-        )
+            # GIF로 저장할 때 애니메이션 속도를 조절할 수 있습니다.
+            # duration은 각 프레임의 표시 시간을 밀리초로 나타냅니다.
+            images[0].save(
+                output_file_name,
+                save_all=True,
+                append_images=images[1:],
+                duration=duration,
+                loop=0,
+            )
+            self.status_label.setText("GIF 파일을 생성했습니다. 폴더를 확인해주세요.")
+        except Exception as e:
+            self.status_label.setText("GIF 파일을 생성하지 못했습니다.")
 
     # 처음, 날짜클릭시 실행됨 - 조회, 파일생성시 사용되는 변수 값 세팅
     def set_current_date(self, selected_date):
@@ -541,16 +567,3 @@ if __name__ == "__main__":
     ex = Diary()
 
     sys.exit(app.exec_())
-
-# DB 조회 시나리오
-# 맨처음프로그램 실행시
-# - 현재 캘린더 페이지 일기 쓴 날 체크
-# - 오늘 날짜 일기 데이터 체크
-# 캘린더 페이지 변경시
-# - 현재 캘린더 페이지 일기 쓴 날 체크
-# 날짜 변경시
-# - 변경한 날짜 일기 데이터 체크
-
-# 일기 저장할때 insert, 수정힐때 update, 일기 내용 지울때 delete
-
-# 저장된 이미지파일 오디오파일 체크하고 UI에 표시해야겠다
