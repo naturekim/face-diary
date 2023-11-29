@@ -481,17 +481,19 @@ class Diary(QMainWindow):
 
     # 일기삭제
     def delete_diary(self):
+        # DB 삭제처리
         result = self.manageDiary.delete_entry(self.selected_date)
         if result:
             self.status_label.setText("일기가 삭제되었습니다.")
             self.paint_ui("", "", "")
 
-            # 클릭 시 다시 원래의 색상으로 되돌리기 위해 빈 QTextCharFormat으로 설정
+            # 캘린더를 다시 원래의 색상으로 되돌리기 위해 빈 QTextCharFormat으로 설정
             fm = QTextCharFormat()
             fm.clearForeground()
             dday2 = QDate.fromString(self.selected_date, self.DATE_FORMAT)
             self.calendar_widget.setDateTextFormat(dday2, fm)
 
+            # \\\\\\\\\\\\ 실제 이미지, 오디오파일 삭제처리 필요
         else:
             self.status_label.setText("삭제가 실패했습니다. 다시 시도해주세요.")
 
